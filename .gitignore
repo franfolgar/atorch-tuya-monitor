@@ -1,0 +1,13 @@
+node_modules/
+.wrangler/
+dist/
+*.log
+# Secrets and personal config / secretos y configuración personal
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+wrangler.toml
+wrangler.jsonc
+wrangler.json

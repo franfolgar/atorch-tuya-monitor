@@ -1,0 +1,48 @@
+# Copy this file to wrangler.toml and fill in the values marked REPLACE.
+# wrangler.toml is in .gitignore so your own IDs never end up in the repo.
+# Copia este archivo como wrangler.toml y rellena los valores marcados REPLACE.
+
+name = "atorch-tuya-monitor"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# The cron fires every minute; READ_INTERVAL_MINUTES decides which minutes actually read.
+# El cron se dispara cada minuto; READ_INTERVAL_MINUTES decide en qué minutos se lee.
+[triggers]
+crons = ["* * * * *"]
+
+# Tuya token cache. Create it with: npx wrangler kv namespace create TOKEN_CACHE
+[[kv_namespaces]]
+binding = "TOKEN_CACHE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Login attempt limits (Cloudflare Rate Limiting binding, free plan).
+# Límite de intentos de login. namespace_id is any number unique in your account.
+[[ratelimits]]
+name = "LOGIN_LIMITER_IP"
+namespace_id = "41001"
+simple = { limit = 5, period = 60 }
+
+[[ratelimits]]
+name = "LOGIN_LIMITER_GLOBAL"
+namespace_id = "41002"
+simple = { limit = 30, period = 60 }
+
+[vars]
+# Tuya data center of your Tuya/Smart Life account (see README).
+TUYA_BASE_URL = "https://openapi.tuyaeu.com"
+# Minutes between readings. 2 fits Tuya's trial quota; 1 does not (see README).
+READ_INTERVAL_MINUTES = "2"
+# "true" also stores failures in the energy_errors table.
+LOG_ERRORS_TO_DB = "true"
+# IANA time zone for days, hours and exports. Must match the one in the SQL migration.
+TIMEZONE = "Europe/Madrid"
+
+# src/*.html pages are imported as text.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[observability]
+enabled = true

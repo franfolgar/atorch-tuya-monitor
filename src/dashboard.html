@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)">
+<title>Monitor de energía</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f3ef; --surface: #fcfcfb; --text: #0b0b0b; --text-2: #52514e; --muted: #6f6d67;
+    --grid: #e1e0d9; --border: rgba(11,11,11,.10); --series: #2a78d6; --wash: rgba(42,120,214,.10);
+    --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --critical-text: #a92c2c;
+    --ghost: rgba(11,11,11,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --border: rgba(255,255,255,.10); --series: #3987e5; --wash: rgba(57,135,229,.14);
+      --critical-text: #e66767; --ghost: rgba(255,255,255,.07);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
+  main > *, .grid > *, .kpis > * { min-width: 0; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { margin: 0; font-size: 20px; line-height: 1.2; }
+  h2 { margin: 0; font-size: 15px; font-weight: 650; }
+  .sub { margin: 0; color: var(--text-2); font-size: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  button, select, input[type=date] {
+    min-height: 40px; font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 0 12px;
+  }
+  button { cursor: pointer; }
+  button:hover { background: var(--ghost); }
+  :focus-visible { outline: 2px solid var(--series); outline-offset: 2px; }
+
+  .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr); gap: 16px; }
+  .now { display: grid; align-content: space-between; gap: 18px; }
+  .now .value { font-size: clamp(46px, 8vw, 68px); font-weight: 680; line-height: 1; letter-spacing: -.02em; }
+  .now .unit { font-size: .42em; font-weight: 550; color: var(--text-2); letter-spacing: 0; margin-left: 4px; }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .status i { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  .status[data-state=good] i { background: var(--good); }
+  .status[data-state=warning] i { background: var(--warning); }
+  .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+  .kpi .label { font-size: 13px; color: var(--text-2); }
+  .kpi .val { font-size: 24px; font-weight: 650; line-height: 1.25; }
+  .kpi .val small { font-size: 14px; font-weight: 500; color: var(--text-2); margin-left: 3px; }
+  .kpi .note { font-size: 12px; color: var(--muted); }
+
+  .banner { display: flex; gap: 10px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--critical); background: var(--surface); }
+  .banner strong { color: var(--critical-text); }
+  .banner p { margin: 0; overflow-wrap: anywhere; font-size: 13px; color: var(--text-2); }
+
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filters button[aria-pressed=true] { background: var(--series); border-color: var(--series); color: #fff; font-weight: 600; }
+  .grid { display: grid; gap: 16px; transition: opacity .15s; }
+  .grid.loading { opacity: .6; }
+  .chart-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chart { position: relative; height: 250px; touch-action: pan-y; }
+  .chart svg { display: block; width: 100%; height: 100%; }
+  .empty { display: grid; place-items: center; height: 100%; color: var(--muted); }
+  .axis { fill: var(--muted); font-size: 11px; }
+  #tip {
+    position: fixed; z-index: 5; pointer-events: none; padding: 8px 10px; border-radius: 8px; font-size: 12px;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,.18); max-width: 240px;
+  }
+  #tip b { display: block; font-size: 15px; }
+  #tip span { color: var(--text-2); display: block; }
+  details { margin-top: 10px; font-size: 13px; }
+  summary { cursor: pointer; color: var(--text-2); }
+  .table-wrap { max-height: 280px; overflow: auto; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { position: sticky; top: 0; background: var(--surface); font-weight: 600; }
+
+  .export-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; align-items: end; }
+  .export-form label { display: grid; gap: 4px; font-size: 13px; color: var(--text-2); min-width: 0; }
+  .export-form select, .export-form input { width: 100%; min-width: 0; }
+  .export-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .primary { background: var(--series); border-color: var(--series); color: #fff; font-weight: 600; }
+  .primary:hover { background: var(--series); filter: brightness(1.08); }
+  .primary:disabled { opacity: .6; cursor: progress; }
+  #export-status { font-size: 13px; color: var(--text-2); }
+  #export-status.err { color: var(--critical-text); font-weight: 600; }
+
+  @media (max-width: 820px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+    .export-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 460px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chart { height: 220px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Monitor de energía</h1>
+      <p class="sub">ATORCH · Tuya / Smart Life · __TIMEZONE__</p>
+    </div>
+    <form method="post" action="/logout"><button type="submit">Salir</button></form>
+  </header>
+
+  <section class="hero">
+    <div class="card now">
+      <div>
+        <h2>Potencia ahora</h2>
+        <div class="value" id="now-power" style="margin-top:10px">—</div>
+      </div>
+      <div>
+        <div class="status" id="status" role="status"><i></i><span>Cargando…</span></div>
+        <p class="sub" id="now-time"></p>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Tensión</div><div class="val" id="k-voltage">—</div></div>
+      <div class="kpi"><div class="label">Corriente</div><div class="val" id="k-current">—</div></div>
+      <div class="kpi"><div class="label">Factor de potencia</div><div class="val" id="k-pf">—</div><div class="note">Calculado: W / (V × A)</div></div>
+      <div class="kpi"><div class="label">Consumo hoy</div><div class="val" id="k-today">—</div><div class="note" id="k-today-note"></div></div>
+      <div class="kpi"><div class="label">Consumo ayer</div><div class="val" id="k-yesterday">—</div><div class="note" id="k-yesterday-note"></div></div>
+      <div class="kpi"><div class="label">Últimos 30 días</div><div class="val" id="k-month">—</div><div class="note" id="k-month-note"></div></div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner" role="alert" hidden>
+    <div><strong id="banner-title"></strong><p id="banner-text"></p></div>
+  </div>
+
+  <div class="filters" role="group" aria-label="Periodo de las gráficas">
+    <button type="button" data-range="24h" aria-pressed="true">24 horas</button>
+    <button type="button" data-range="7d" aria-pressed="false">7 días</button>
+    <button type="button" data-range="30d" aria-pressed="false">30 días</button>
+  </div>
+
+  <div class="grid" id="charts">
+    <section class="card">
+      <div class="chart-head">
+        <div><h2>Potencia</h2><p class="sub" id="power-sub"></p></div>
+        <p class="sub" id="power-stats"></p>
+      </div>
+      <div class="chart" id="power-chart"></div>
+    </section>
+    <section class="card">
+      <div class="chart-head">
+        <div><h2 id="energy-title">Consumo</h2><p class="sub" id="energy-sub"></p></div>
+        <p class="sub" id="energy-stats"></p>
+      </div>
+      <div class="chart" id="energy-chart"></div>
+      <details>
+        <summary>Ver como tabla</summary>
+        <div class="table-wrap"><table id="energy-table"></table></div>
+      </details>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Exportar datos</h2>
+    <p class="sub">Descarga un archivo para estudiarlo en Excel, Python o lo que prefieras.</p>
+    <form id="export-form">
+      <div class="export-form">
+        <label>Datos
+          <select id="ex-dataset">
+            <option value="readings">Todas las lecturas</option>
+            <option value="hourly">Consumo por hora</option>
+            <option value="daily">Consumo por día</option>
+          </select>
+        </label>
+        <label>Desde <input type="date" id="ex-from" required></label>
+        <label>Hasta <input type="date" id="ex-to" required></label>
+        <label>Formato
+          <select id="ex-format">
+            <option value="excel">Excel en español (;)</option>
+            <option value="csv">CSV estándar (,)</option>
+          </select>
+        </label>
+      </div>
+      <div class="export-actions">
+        <button type="submit" class="primary" id="ex-go">Exportar</button>
+        <button type="button" data-preset="7">7 días</button>
+        <button type="button" data-preset="30">30 días</button>
+        <button type="button" data-preset="all">Todo</button>
+        <span id="export-status" role="status"></span>
+      </div>
+    </form>
+  </section>
+</main>
+<div id="tip" hidden></div>
+
+<script nonce="__NONCE__">
+"use strict";
+const TZ = "__TIMEZONE__";
+const HOUR = 3600000, DAY = 86400000;
+const $ = (id) => document.getElementById(id);
+const fmt = (d) => new Intl.NumberFormat("es-ES", { maximumFractionDigits: d, minimumFractionDigits: d });
+const f0 = fmt(0), f1 = fmt(1), f2 = fmt(2), f3 = fmt(3);
+const dtf = (o) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o });
+const fHour = dtf({ hour: "2-digit", minute: "2-digit" });
+const fDayShort = dtf({ day: "numeric", month: "short" });
+const fFull = dtf({ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const fWeekday = dtf({ weekday: "short", day: "numeric", month: "short" });
+const fIso = new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, dateStyle: "short", timeStyle: "medium" });
+const fParts = dtf({ hour: "2-digit", hourCycle: "h23", day: "numeric" });
+
+const num = (v) => (v === null || v === undefined ? null : Number(v));
+const todayStr = () => fIso.format(new Date()).slice(0, 10);
+const addDays = (s, n) => new Date(Date.parse(s + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
+const dayDate = (s) => new Date(s + "T12:00:00Z");
+
+let summary = null;
+let range = "24h";
+
+function setVal(id, text, unit) {
+  const el = $(id);
+  el.textContent = text;
+  if (unit) {
+    const s = document.createElement(el.classList.contains("value") ? "span" : "small");
+    if (el.classList.contains("value")) s.className = "unit";
+    s.textContent = unit;
+    el.append(s);
+  }
+}
+
+function ago(ms) {
+  const min = Math.round(ms / 60000);
+  if (min < 1) return "hace menos de 1 min";
+  if (min < 60) return "hace " + min + " min";
+  const h = Math.round(min / 60);
+  if (h < 48) return "hace " + h + " h";
+  return "hace " + Math.round(h / 24) + " días";
+}
+
+/* ---------- Gráficas ---------- */
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.append(e);
+  return e;
+}
+function niceScale(max) {
+  if (!(max > 0)) return { top: 1, ticks: [0, 0.25, 0.5, 0.75, 1] };
+  const rough = max / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= rough);
+  const top = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = 0; v <= top + step / 2; v += step) ticks.push(Number(v.toPrecision(10)));
+  return { top, ticks };
+}
+function axisLabel(v, top) {
+  const d = top >= 10 ? 0 : top >= 1 ? 1 : top >= 0.1 ? 2 : 3;
+  return fmt(d).format(v);
+}
+function emptyChart(box, text) {
+  box.replaceChildren();
+  const d = document.createElement("div");
+  d.className = "empty";
+  d.textContent = text;
+  box.append(d);
+}
+function showTip(lines, x, y) {
+  const tip = $("tip");
+  tip.replaceChildren();
+  const b = document.createElement("b");
+  b.textContent = lines[0];
+  tip.append(b);
+  for (const l of lines.slice(1)) {
+    const s = document.createElement("span");
+    s.textContent = l;
+    tip.append(s);
+  }
+  tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  const left = Math.min(Math.max(8, x + 14), innerWidth - r.width - 8);
+  const top = y - r.height - 12 < 8 ? y + 16 : y - r.height - 12;
+  tip.style.left = (x + 14 + r.width > innerWidth - 8 ? Math.max(8, x - r.width - 14) : left) + "px";
+  tip.style.top = top + "px";
+}
+const hideTip = () => { $("tip").hidden = true; };
+
+function ticksFor(start, end) {
+  const span = end - start;
+  const out = [];
+  const pick = span <= 1.5 * DAY ? (h) => h % 4 === 0
+    : span <= 10 * DAY ? (h) => h === 0
+    : (h, d) => h === 0 && d % 5 === 0;
+  const show = span <= 1.5 * DAY ? fHour : fDayShort;
+  for (let t = Math.ceil(start / HOUR) * HOUR; t <= end; t += HOUR) {
+    const p = fParts.formatToParts(new Date(t));
+    const h = Number(p.find((x) => x.type === "hour").value);
+    const d = Number(p.find((x) => x.type === "day").value);
+    if (pick(h, d)) out.push({ t, label: show.format(new Date(t)) });
+  }
+  return out;
+}
+
+function drawLine(box, pts, start, end, gap, tipFor) {
+  if (!pts.length) return emptyChart(box, "Todavía no hay lecturas en este periodo");
+  box.replaceChildren();
+  const W = box.clientWidth, H = box.clientHeight;
+  const m = { l: 46, r: 12, t: 10, b: 24 };
+  const { top, ticks } = niceScale(Math.max(...pts.map((p) => p.hi ?? p.v)));
+  const X = (t) => m.l + ((t - start) / (end - start)) * (W - m.l - m.r);
+  const Y = (v) => H - m.b - (v / top) * (H - m.t - m.b);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Gráfica de potencia en vatios a lo largo del tiempo" }, box);
+
+  for (const v of ticks) {
+    svgEl("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    svgEl("text", { x: m.l - 8, y: Y(v) + 4, "text-anchor": "end", class: "axis" }, svg).textContent = axisLabel(v, top);
+  }
+  const xt = ticksFor(start, end);
+  const every = Math.ceil(xt.length / Math.max(2, Math.floor((W - m.l - m.r) / 64)));
+  xt.forEach((tk, i) => {
+    if (i % every) return;
+    svgEl("text", { x: X(tk.t), y: H - 7, "text-anchor": "middle", class: "axis" }, svg).textContent = tk.label;
+  });
+
+  const segs = [];
+  for (const p of pts) {
+    const last = segs[segs.length - 1];
+    if (last && p.t - last[last.length - 1].t <= gap) last.push(p);
+    else segs.push([p]);
+  }
+  for (const s of segs) {
+    if (s.length === 1) {
+      svgEl("circle", { cx: X(s[0].t), cy: Y(s[0].v), r: 3, fill: "var(--series)" }, svg);
+      continue;
+    }
+    const line = s.map((p, i) => (i ? "L" : "M") + X(p.t).toFixed(1) + " " + Y(p.v).toFixed(1)).join("");
+    const base = Y(0).toFixed(1);
+    svgEl("path", { d: `${line}L${X(s[s.length - 1].t).toFixed(1)} ${base}L${X(s[0].t).toFixed(1)} ${base}Z`, fill: "var(--wash)" }, svg);
+    svgEl("path", { d: line, fill: "none", stroke: "var(--series)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+  }
+  const lastP = pts[pts.length - 1];
+  svgEl("circle", { cx: X(lastP.t), cy: Y(lastP.v), r: 4, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+
+  const cross = svgEl("line", { y1: m.t, y2: H - m.b, stroke: "var(--muted)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const dot = svgEl("circle", { r: 4, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" }, svg);
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const t = start + ((ev.clientX - r.left - m.l) / (W - m.l - m.r)) * (end - start);
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    cross.setAttribute("x1", X(best.t)); cross.setAttribute("x2", X(best.t));
+    cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", X(best.t)); dot.setAttribute("cy", Y(best.v));
+    dot.setAttribute("visibility", "visible");
+    showTip(tipFor(best), ev.clientX, ev.clientY);
+  };
+  const leave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); };
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", leave);
+}
+
+function drawBars(box, slots) {
+  if (!slots.some((s) => s.v !== null)) return emptyChart(box, "Todavía no hay consumo calculado en este periodo");
+  box.replaceChildren();
+  const W = box.clientWidth, H = box.clientHeight;
+  const m = { l: 46, r: 12, t: 10, b: 24 };
+  const { top, ticks } = niceScale(Math.max(...slots.map((s) => s.v ?? 0)));
+  const Y = (v) => H - m.b - (v / top) * (H - m.t - m.b);
+  const band = (W - m.l - m.r) / slots.length;
+  const bw = Math.max(2, Math.min(24, band - 2));
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Gráfica de barras de consumo en kilovatios hora" }, box);
+  for (const v of ticks) {
+    svgEl("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    svgEl("text", { x: m.l - 8, y: Y(v) + 4, "text-anchor": "end", class: "axis" }, svg).textContent = axisLabel(v, top);
+  }
+  const every = Math.ceil(slots.length / Math.max(2, Math.floor((W - m.l - m.r) / 56)));
+  slots.forEach((s, i) => {
+    const cx = m.l + band * (i + 0.5);
+    if ((slots.length - 1 - i) % every === 0) {
+      svgEl("text", { x: cx, y: H - 7, "text-anchor": "middle", class: "axis" }, svg).textContent = s.axis;
+    }
+    let bar = null;
+    if (s.v > 0) {
+      const y = Y(s.v), x = cx - bw / 2, base = Y(0), r = Math.min(4, bw / 2, base - y);
+      bar = svgEl("path", {
+        d: `M${x} ${base}V${y + r}Q${x} ${y} ${x + r} ${y}H${x + bw - r}Q${x + bw} ${y} ${x + bw} ${y + r}V${base}Z`,
+        fill: "var(--series)", "fill-opacity": s.partial ? 0.55 : 1,
+      }, svg);
+    }
+    const hit = svgEl("rect", { x: m.l + band * i, y: m.t, width: band, height: H - m.t - m.b, fill: "transparent" }, svg);
+    const show = (ev) => {
+      if (bar) bar.setAttribute("fill-opacity", s.partial ? 0.7 : 0.8);
+      showTip([s.v === null ? "Sin datos" : f3.format(s.v) + " kWh", s.title + (s.partial ? " (en curso)" : "")], ev.clientX, ev.clientY);
+    };
+    hit.addEventListener("pointermove", show);
+    hit.addEventListener("pointerdown", show);
+    hit.addEventListener("pointerleave", () => {
+      if (bar) bar.setAttribute("fill-opacity", s.partial ? 0.55 : 1);
+      hideTip();
+    });
+  });
+}
+
+/* ---------- Pintar datos ---------- */
+function renderTop(d) {
+  const latest = d.latest[0];
+  const status = $("status");
+  if (!latest) {
+    setVal("now-power", "—");
+    status.dataset.state = "warning";
+    status.lastElementChild.textContent = "Todavía no hay lecturas";
+  } else {
+    const p = num(latest.power_w), v = num(latest.voltage_v), a = num(latest.current_a);
+    const when = new Date(latest.ts);
+    const age = Date.now() - when.getTime();
+    const stale = age > Math.max(3 * d.intervalMinutes, 6) * 60000;
+    setVal("now-power", p === null ? "—" : f1.format(p), p === null ? "" : "W");
+    status.dataset.state = stale ? "warning" : "good";
+    status.lastElementChild.textContent = stale ? "Sin lecturas nuevas" : "Recibiendo datos";
+    const relay = latest.relay_on === null ? "" : latest.relay_on ? " · Relé encendido" : " · Relé apagado";
+    $("now-time").textContent = "Última lectura: " + fFull.format(when) + " (" + ago(age) + ")" + relay;
+    setVal("k-voltage", v === null ? "—" : f1.format(v), v === null ? "" : "V");
+    setVal("k-current", a === null ? "—" : f3.format(a), a === null ? "" : "A");
+    const pf = p !== null && v > 0 && a > 0 ? Math.min(1, p / (v * a)) : null;
+    setVal("k-pf", pf === null ? "—" : f2.format(pf));
+  }
+
+  const today = todayStr(), yesterday = addDays(today, -1);
+  const byDay = new Map(d.daily.map((r) => [r.day, r]));
+  const energyTile = (id, row, partial) => {
+    const kwh = row ? num(row.kwh) : null;
+    setVal(id, kwh === null ? "—" : f2.format(kwh), kwh === null ? "" : "kWh");
+    const kind = row && row.kwh_counter !== null ? "" : "estimado";
+    $(id + "-note").textContent = row ? [kind, partial].filter(Boolean).join(" · ") : "Sin datos";
+  };
+  energyTile("k-today", byDay.get(today), "hasta ahora");
+  energyTile("k-yesterday", byDay.get(yesterday), "");
+
+  const from = addDays(today, -29);
+  const month = d.daily.filter((r) => r.day >= from && r.kwh !== null);
+  const total = month.reduce((s, r) => s + num(r.kwh), 0);
+  setVal("k-month", month.length ? f1.format(total) : "—", month.length ? "kWh" : "");
+  const firstDay = month.length ? month[month.length - 1].day : null;
+  $("k-month-note").textContent = !firstDay ? "Sin datos"
+    : firstDay > from ? "estimado · desde " + fDayShort.format(dayDate(firstDay)) : "estimado";
+
+  const banner = $("banner");
+  banner.hidden = !d.errors.length;
+  if (d.errors.length) {
+    const n = d.errors.length;
+    $("banner-title").textContent = (n >= 20 ? "20 o más errores" : n + (n === 1 ? " error" : " errores")) + " en las últimas 24 horas";
+    const e = d.errors[0];
+    $("banner-text").textContent = "Último, " + fFull.format(new Date(e.ts)) + " (" + e.stage + "): " + e.message;
+  }
+}
+
+function renderCharts() {
+  const d = summary;
+  if (!d || !$("power-chart").clientWidth) return;
+  const now = Date.now();
+  const days = range === "24h" ? 1 : range === "7d" ? 7 : 30;
+  const start = now - days * DAY;
+
+  let pts, gap, sub;
+  if (range === "24h") {
+    pts = d.readingPages.flat().map((r) => ({ t: Date.parse(r.ts), v: num(r.power_w) }))
+      .filter((p) => p.v !== null).sort((a, b) => a.t - b.t);
+    gap = Math.max(3 * d.intervalMinutes, 6) * 60000;
+    sub = "Cada lectura, en vatios";
+  } else {
+    pts = d.hourly.map((r) => ({ t: Date.parse(r.hour_start), v: num(r.avg_power_w), hi: num(r.max_power_w), n: num(r.samples) }))
+      .filter((p) => p.v !== null && p.t >= start);
+    gap = 1.5 * HOUR;
+    sub = "Media por hora, en vatios";
+  }
+  $("power-sub").textContent = sub;
+  if (pts.length) {
+    const avg = pts.reduce((s, p) => s + p.v, 0) / pts.length;
+    const max = Math.max(...pts.map((p) => p.hi ?? p.v));
+    $("power-stats").textContent = "Media " + f1.format(avg) + " W · Máx " + f1.format(max) + " W";
+  } else $("power-stats").textContent = "";
+  drawLine($("power-chart"), pts, start, now, gap, (p) => {
+    const lines = [f1.format(p.v) + " W"];
+    lines.push(fFull.format(new Date(p.t)));
+    if (p.hi !== undefined && p.hi !== null) lines.push("Pico en esa hora: " + f1.format(p.hi) + " W");
+    return lines;
+  });
+
+  let slots;
+  if (range === "24h") {
+    const byHour = new Map(d.hourly.map((r) => [Date.parse(r.hour_start), num(r.kwh)]));
+    const cur = Math.floor(now / HOUR) * HOUR;
+    slots = [];
+    for (let i = 23; i >= 0; i--) {
+      const t = cur - i * HOUR;
+      slots.push({ v: byHour.has(t) ? byHour.get(t) : null, axis: fHour.format(new Date(t)), title: fFull.format(new Date(t)), partial: i === 0 });
+    }
+    $("energy-title").textContent = "Consumo por hora";
+    $("energy-sub").textContent = "kWh estimados. La última barra es la hora en curso";
+  } else {
+    const byDay = new Map(d.daily.map((r) => [r.day, num(r.kwh)]));
+    const today = todayStr();
+    slots = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const s = addDays(today, -i);
+      slots.push({ v: byDay.has(s) ? byDay.get(s) : null, axis: fDayShort.format(dayDate(s)), title: fWeekday.format(dayDate(s)), partial: i === 0 });
+    }
+    $("energy-title").textContent = "Consumo por día";
+    $("energy-sub").textContent = "kWh estimados. La última barra es el día en curso";
+  }
+  const known = slots.filter((s) => s.v !== null);
+  $("energy-stats").textContent = known.length ? "Total " + f2.format(known.reduce((a, s) => a + s.v, 0)) + " kWh" : "";
+  drawBars($("energy-chart"), slots);
+
+  const table = $("energy-table");
+  table.replaceChildren();
+  const head = table.insertRow();
+  for (const t of ["Periodo", "kWh"]) {
+    const th = document.createElement("th");
+    th.textContent = t;
+    head.append(th);
+  }
+  for (const s of [...slots].reverse()) {
+    const row = table.insertRow();
+    row.insertCell().textContent = s.title + (s.partial ? " (en curso)" : "");
+    row.insertCell().textContent = s.v === null ? "—" : f3.format(s.v);
+  }
+}
+
+async function load() {
+  $("charts").classList.add("loading");
+  try {
+    const res = await fetch("/api/summary", { cache: "no-store" });
+    if (res.status === 401) { location.reload(); return; }
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    summary = await res.json();
+    renderTop(summary);
+    renderCharts();
+  } catch (err) {
+    const banner = $("banner");
+    banner.hidden = false;
+    $("banner-title").textContent = "No se han podido cargar los datos";
+    $("banner-text").textContent = "Se volverá a intentar en un minuto. Detalle: " + err.message;
+  } finally {
+    $("charts").classList.remove("loading");
+  }
+}
+
+for (const b of document.querySelectorAll("[data-range]")) {
+  b.addEventListener("click", () => {
+    range = b.dataset.range;
+    for (const o of document.querySelectorAll("[data-range]")) o.setAttribute("aria-pressed", String(o === b));
+    renderCharts();
+  });
+}
+// Repinta al cambiar el ancho, también si la página se cargó sin espacio visible.
+let resizeTimer, lastWidth = 0;
+new ResizeObserver(([entry]) => {
+  const width = entry.contentRect.width;
+  if (width === lastWidth) return;
+  lastWidth = width;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderCharts, 100);
+}).observe($("charts"));
+setInterval(() => { if (!document.hidden) load(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+
+/* ---------- Exportación ---------- */
+const COLUMNS = {
+  readings: {
+    cursor: "ts", headers: ["fecha_hora_espana", "ts_utc", "power_w", "voltage_v", "current_a", "relay_on", "add_ele_crudo"],
+    row: (r) => [fIso.format(new Date(r.ts)), new Date(r.ts).toISOString(), num(r.power_w), num(r.voltage_v), num(r.current_a),
+      r.relay_on === null ? "" : r.relay_on ? 1 : 0, rawAddEle(r.raw)],
+  },
+  hourly: {
+    cursor: "hour_start", headers: ["hora_inicio_espana", "ts_utc", "kwh", "kwh_contador", "kwh_estimado", "lecturas", "potencia_media_w", "potencia_max_w"],
+    row: (r) => [fIso.format(new Date(r.hour_start)), new Date(r.hour_start).toISOString(), num(r.kwh), num(r.kwh_counter), num(r.kwh_estimated), num(r.samples), num(r.avg_power_w), num(r.max_power_w)],
+  },
+  daily: {
+    cursor: "day", headers: ["dia", "kwh", "kwh_contador", "kwh_estimado", "lecturas", "potencia_media_w", "potencia_max_w", "archivado"],
+    row: (r) => [r.day, num(r.kwh), num(r.kwh_counter), num(r.kwh_estimated), num(r.samples), num(r.avg_power_w), num(r.max_power_w), r.archived ? 1 : 0],
+  },
+};
+function rawAddEle(raw) {
+  const item = Array.isArray(raw) ? raw.find((x) => x && x.code === "add_ele") : null;
+  const v = item ? Number(item.value) : NaN;
+  return Number.isFinite(v) ? v : "";
+}
+function cell(v, excel) {
+  if (v === null || v === undefined || v === "") return "";
+  if (typeof v === "number") {
+    const s = String(Number(v.toFixed(6)));
+    return excel ? s.replace(".", ",") : s;
+  }
+  return /[;,"\n]/.test(v) ? '"' + v.replaceAll('"', '""') + '"' : v;
+}
+function setExportStatus(text, isError) {
+  const s = $("export-status");
+  s.textContent = text;
+  s.classList.toggle("err", Boolean(isError));
+}
+function setPreset(p) {
+  const today = todayStr();
+  $("ex-to").value = today;
+  $("ex-from").value = p === "all" ? "2026-11-01" : addDays(today, -(Number(p) - 1));
+}
+for (const b of document.querySelectorAll("[data-preset]")) b.addEventListener("click", () => setPreset(b.dataset.preset));
+setPreset("30");
+
+$("export-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const dataset = $("ex-dataset").value, from = $("ex-from").value, to = $("ex-to").value;
+  const excel = $("ex-format").value === "excel";
+  if (from > to) return setExportStatus("«Desde» no puede ser posterior a «Hasta».", true);
+  const spec = COLUMNS[dataset];
+  const sep = excel ? ";" : ",";
+  const lines = [spec.headers.join(sep)];
+  const go = $("ex-go");
+  go.disabled = true;
+  setExportStatus("Preparando…");
+  try {
+    let after = null, count = 0;
+    for (;;) {
+      const q = new URLSearchParams({ dataset, from, to });
+      if (after) q.set("after", after);
+      const res = await fetch("/api/export?" + q, { cache: "no-store" });
+      if (res.status === 401) throw new Error("La sesión ha caducado. Recarga la página.");
+      if (!res.ok) throw new Error("El servidor respondió con un error (" + res.status + ").");
+      const rows = await res.json();
+      for (const r of rows) lines.push(spec.row(r).map((v) => cell(v, excel)).join(sep));
+      count += rows.length;
+      setExportStatus("Descargando… " + f0.format(count) + " filas");
+      if (rows.length < 1000) break;
+      after = rows[rows.length - 1][spec.cursor];
+    }
+    if (!count) return setExportStatus("No hay datos en ese periodo.");
+    const text = (excel ? "﻿" : "") + lines.join("\r\n") + "\r\n";
+    const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "energia_" + dataset + "_" + from + "_" + to + ".csv";
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    setExportStatus("Listo: " + f0.format(count) + " filas.");
+  } catch (err) {
+    setExportStatus(err.message, true);
+  } finally {
+    go.disabled = false;
+  }
+});
+
+load();
+</script>
+</body>
+</html>

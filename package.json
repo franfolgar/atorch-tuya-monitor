@@ -1,0 +1,29 @@
+{
+  "name": "atorch-tuya-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "logs": "wrangler tail",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261106.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^5.6.0",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.36.0"
+  },
+  "description": "Log an ATORCH (Tuya / Smart Life) energy meter to Supabase with a free Cloudflare Worker, plus a dashboard with CSV export.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/franfolgar/atorch-tuya-monitor.git"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
