@@ -414,6 +414,8 @@ describe("seguridad del acceso", () => {
     expect(res.status).toBe(403);
     expect(res.headers.get("Set-Cookie")).toBeNull();
     expect((await login(makeEnv(), { Origin: "https://w.dev" })).status).toBe(303);
+    // Lo que manda un navegador si la política de referrer fuera no-referrer.
+    expect((await login(makeEnv(), { Origin: "null" })).status).toBe(403);
   });
 
   it("no arranca el dashboard con una contraseña corta", async () => {
@@ -427,7 +429,7 @@ describe("seguridad del acceso", () => {
     const res = await worker.fetch(new Request("https://w.dev/"), makeEnv());
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(res.headers.get("X-Frame-Options")).toBe("DENY");
-    expect(res.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(res.headers.get("Referrer-Policy")).toBe("same-origin");
     expect(await res.text()).not.toContain(PASSWORD);
   });
 

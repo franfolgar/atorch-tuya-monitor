@@ -318,7 +318,7 @@ El repositorio **no contiene ninguna clave**. Todo lo sensible vive en los secre
 | Sesión | Cookie firmada (HMAC-SHA256 con la contraseña) válida 30 días, `HttpOnly`, `Secure`, `SameSite=Strict`. Cambiar la contraseña invalida todas las sesiones. |
 | CSRF | El login y el cierre de sesión rechazan peticiones de otros orígenes. |
 | `/debug` | Solo con sesión iniciada. Ninguna clave va en la URL. |
-| Cabeceras | Content-Security-Policy estricta con nonce por petición, `X-Frame-Options: DENY`, `nosniff`, `no-referrer`, HSTS, `noindex`. |
+| Cabeceras | Content-Security-Policy estricta con nonce por petición, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, HSTS, `noindex`. |
 | Exportación | Solo tres vistas permitidas; fechas y cursores se validan antes de consultar Supabase. |
 | Base de datos | RLS activado sin políticas públicas: la clave anon/publishable no puede leer nada. |
 | Errores | El detalle de los errores de Supabase va al log, no al navegador. |

@@ -318,7 +318,7 @@ The repository contains **no keys**. Everything sensitive lives in Cloudflare se
 | Session | Signed cookie (HMAC-SHA256 with the password) valid for 30 days, `HttpOnly`, `Secure`, `SameSite=Strict`. Changing the password invalidates all sessions. |
 | CSRF | Login and logout reject requests from other origins. |
 | `/debug` | Only with a logged-in session. No keys in URLs. |
-| Headers | Strict Content-Security-Policy with a per-request nonce, `X-Frame-Options: DENY`, `nosniff`, `no-referrer`, HSTS, `noindex`. |
+| Headers | Strict Content-Security-Policy with a per-request nonce, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, HSTS, `noindex`. |
 | Export | Only three whitelisted views; dates and cursors are validated before querying Supabase. |
 | Database | RLS enabled with no public policies; the anon/publishable key cannot read anything. |
 | Errors | Supabase error details are logged, not shown to the browser. |

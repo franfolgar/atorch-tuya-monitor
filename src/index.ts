@@ -107,7 +107,9 @@ async function handleDebug(env: Env): Promise<Response> {
 export function withSecurityHeaders(res: Response): Response {
   const headers = new Headers(res.headers);
   headers.set("X-Content-Type-Options", "nosniff");
-  headers.set("Referrer-Policy", "no-referrer");
+  // same-origin y no no-referrer: con no-referrer el navegador manda "Origin: null"
+  // en el formulario de login y la comprobación de origen lo rechazaría.
+  headers.set("Referrer-Policy", "same-origin");
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Robots-Tag", "noindex, nofollow");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
