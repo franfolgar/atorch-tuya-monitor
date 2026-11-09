@@ -20,7 +20,7 @@ export interface DashboardEnv extends SupabaseEnv {
   LOGIN_LIMITER_GLOBAL?: Limiter;
 }
 
-export const MIN_PASSWORD_LENGTH = 16;
+export const MIN_PASSWORD_LENGTH = 12;
 const DEFAULT_TIMEZONE = "Europe/Madrid";
 const TIMEZONE_RE = /^(?:[A-Za-z]+(?:\/[A-Za-z0-9_+-]+){0,2}|UTC)$/;
 

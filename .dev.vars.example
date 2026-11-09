@@ -5,5 +5,5 @@ TUYA_CLIENT_SECRET=
 TUYA_DEVICE_ID=
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SERVICE_KEY=
-# At least 16 characters / mínimo 16 caracteres
+# At least 12 characters / mínimo 12 caracteres
 DASHBOARD_PASSWORD=

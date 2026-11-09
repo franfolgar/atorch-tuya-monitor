@@ -417,8 +417,10 @@ describe("seguridad del acceso", () => {
   });
 
   it("no arranca el dashboard con una contraseña corta", async () => {
-    const env = { ...makeEnv(), DASHBOARD_PASSWORD: "corta" };
-    expect((await login(env, {}, "corta")).status).toBe(503);
+    const env = { ...makeEnv(), DASHBOARD_PASSWORD: "once-carac1" };
+    expect((await login(env, {}, "once-carac1")).status).toBe(503);
+    const ok = { ...makeEnv(), DASHBOARD_PASSWORD: "doce-carac12" };
+    expect((await login(ok, {}, "doce-carac12")).status).toBe(303);
   });
 
   it("añade cabeceras de seguridad y no muestra la contraseña en ninguna respuesta", async () => {

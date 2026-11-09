@@ -186,7 +186,7 @@ On Windows PowerShell use `Copy-Item wrangler.example.toml wrangler.toml`. Then 
 
 `wrangler.toml` is in `.gitignore`, so your ids are never committed.
 
-**8.5 Create a dashboard password.** It must be **at least 16 characters**; otherwise the dashboard refuses to start. This generates a random one; save it in your password manager:
+**8.5 Create a dashboard password.** It must be **at least 12 characters**; otherwise the dashboard refuses to start. Length matters less than being unguessable: the code is public, so anyone can try passwords against your URL, and names, dates or common words are tried first. Use a random one or 3–4 unrelated words (`turtle-blue-table-monday`). This generates a random one; save it in your password manager:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
@@ -312,7 +312,7 @@ The repository contains **no keys**. Everything sensitive lives in Cloudflare se
 | Measure | Detail |
 |---|---|
 | Secrets | Stored encrypted with `wrangler secret`. The Supabase secret key never reaches the browser. |
-| Strong password | `DASHBOARD_PASSWORD` must have at least 16 characters, or the dashboard stays disabled (readings keep being stored). |
+| Strong password | `DASHBOARD_PASSWORD` must have at least 12 characters, or the dashboard stays disabled (readings keep being stored). |
 | Login rate limit | 5 attempts per minute per IP and 30 per minute globally, with Cloudflare's Rate Limiting binding. After that the login answers *429 Too many attempts* for a minute, even with the right password. |
 | Constant-time comparison | Passwords and signatures are compared via their SHA-256 hashes, without early exit. |
 | Session | Signed cookie (HMAC-SHA256 with the password) valid for 30 days, `HttpOnly`, `Secure`, `SameSite=Strict`. Changing the password invalidates all sessions. |
@@ -365,7 +365,7 @@ Limits change; check each provider's current pricing page.
 | Supabase HTTP 401 | Wrong `SUPABASE_SERVICE_KEY` (you may have pasted the publishable/anon key). |
 | Supabase HTTP 404 `relation ... does not exist` | The migration was not run, or it was run in another project. |
 | Values 100× too big or small | Wrong `scale` in `mapping.ts`: compare `/debug` with the meter's display. |
-| Dashboard answers 503 | `DASHBOARD_PASSWORD` is missing or shorter than 16 characters. |
+| Dashboard answers 503 | `DASHBOARD_PASSWORD` is missing or shorter than 12 characters. |
 | Login answers *Demasiados intentos* (429) | Rate limit reached: wait one minute. |
 | `/debug` answers 401 | Log in to the dashboard first, in the same browser. |
 | Hours or days shifted | `TIMEZONE` and the zone in the SQL views differ. |
@@ -389,7 +389,7 @@ To run it locally, copy `.dev.vars.example` to `.dev.vars` and fill it in (it is
 | `TUYA_DEVICE_ID` | The meter's Device ID |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | `sb_secret_...` or `service_role` key |
-| `DASHBOARD_PASSWORD` | Dashboard password, 16+ characters |
+| `DASHBOARD_PASSWORD` | Dashboard password, 12+ characters |
 
 Project layout:
 

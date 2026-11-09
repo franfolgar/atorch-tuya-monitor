@@ -186,7 +186,7 @@ En PowerShell de Windows usa `Copy-Item wrangler.example.toml wrangler.toml`. De
 
 `wrangler.toml` está en `.gitignore`, así que tus ids nunca se suben al repo.
 
-**8.5 Crear la contraseña del dashboard.** Debe tener **al menos 16 caracteres**; si no, el dashboard no arranca. Esto genera una aleatoria; guárdala en tu gestor de contraseñas:
+**8.5 Crear la contraseña del dashboard.** Debe tener **al menos 12 caracteres**; si no, el dashboard no arranca. Importa más que no se pueda adivinar que su largo: el código es público, así que cualquiera puede probar contraseñas contra tu URL, y los nombres, fechas o palabras comunes se prueban primero. Usa una aleatoria o 3–4 palabras sin relación (`tortuga-azul-mesa-lunes`). Esto genera una aleatoria; guárdala en tu gestor de contraseñas:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
@@ -312,7 +312,7 @@ El repositorio **no contiene ninguna clave**. Todo lo sensible vive en los secre
 | Medida | Detalle |
 |---|---|
 | Secrets | Guardados cifrados con `wrangler secret`. La clave secreta de Supabase nunca llega al navegador. |
-| Contraseña fuerte | `DASHBOARD_PASSWORD` debe tener al menos 16 caracteres; si no, el dashboard se queda desactivado (las lecturas se siguen guardando). |
+| Contraseña fuerte | `DASHBOARD_PASSWORD` debe tener al menos 12 caracteres; si no, el dashboard se queda desactivado (las lecturas se siguen guardando). |
 | Límite de intentos | 5 intentos por minuto por IP y 30 por minuto en total, con el binding Rate Limiting de Cloudflare. Al superarlos, el login responde *429 Demasiados intentos* durante un minuto, incluso con la contraseña buena. |
 | Comparación en tiempo constante | Contraseñas y firmas se comparan por su hash SHA-256, sin salir antes de tiempo. |
 | Sesión | Cookie firmada (HMAC-SHA256 con la contraseña) válida 30 días, `HttpOnly`, `Secure`, `SameSite=Strict`. Cambiar la contraseña invalida todas las sesiones. |
@@ -365,7 +365,7 @@ Los límites cambian: consulta la página de precios actual de cada servicio.
 | Supabase HTTP 401 | `SUPABASE_SERVICE_KEY` incorrecta (puede que pegaras la publishable/anon). |
 | Supabase HTTP 404 `relation ... does not exist` | No se ejecutó la migración, o se ejecutó en otro proyecto. |
 | Valores 100 veces mayores o menores | `scale` incorrecta en `mapping.ts`: compara `/debug` con la pantalla del medidor. |
-| El dashboard responde 503 | Falta `DASHBOARD_PASSWORD` o tiene menos de 16 caracteres. |
+| El dashboard responde 503 | Falta `DASHBOARD_PASSWORD` o tiene menos de 12 caracteres. |
 | El login responde *Demasiados intentos* (429) | Has llegado al límite de intentos: espera un minuto. |
 | `/debug` responde 401 | Entra primero en el dashboard, en el mismo navegador. |
 | Horas o días desplazados | `TIMEZONE` no coincide con la zona de las vistas SQL. |
@@ -389,7 +389,7 @@ Para probar en local, copia `.dev.vars.example` como `.dev.vars` y rellénalo (e
 | `TUYA_DEVICE_ID` | Device ID del medidor |
 | `SUPABASE_URL` | URL del proyecto de Supabase |
 | `SUPABASE_SERVICE_KEY` | Clave `sb_secret_...` o `service_role` |
-| `DASHBOARD_PASSWORD` | Contraseña del dashboard, 16 caracteres o más |
+| `DASHBOARD_PASSWORD` | Contraseña del dashboard, 12 caracteres o más |
 
 Estructura:
 
