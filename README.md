@@ -313,7 +313,7 @@ The repository contains **no keys**. Everything sensitive lives in Cloudflare se
 |---|---|
 | Secrets | Stored encrypted with `wrangler secret`. The Supabase secret key never reaches the browser. |
 | Strong password | `DASHBOARD_PASSWORD` must have at least 12 characters, or the dashboard stays disabled (readings keep being stored). |
-| Login rate limit | 5 attempts per minute per IP and 30 per minute globally, with Cloudflare's Rate Limiting binding. After that the login answers *429 Too many attempts* for a minute, even with the right password. |
+| Login rate limit | 5 attempts per minute per IP and 30 per minute globally, with Cloudflare's Rate Limiting binding. After that the login answers *429 Too many attempts*, even with the right password. The limiter is approximate: in a test with 40 fast attempts, the first 13 got through and some later ones still slipped past. It slows guessing down a lot, but **an unguessable password is still what really protects you**. |
 | Constant-time comparison | Passwords and signatures are compared via their SHA-256 hashes, without early exit. |
 | Session | Signed cookie (HMAC-SHA256 with the password) valid for 30 days, `HttpOnly`, `Secure`, `SameSite=Strict`. Changing the password invalidates all sessions. |
 | CSRF | Login and logout reject requests from other origins. |

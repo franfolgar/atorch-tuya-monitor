@@ -313,7 +313,7 @@ El repositorio **no contiene ninguna clave**. Todo lo sensible vive en los secre
 |---|---|
 | Secrets | Guardados cifrados con `wrangler secret`. La clave secreta de Supabase nunca llega al navegador. |
 | Contraseña fuerte | `DASHBOARD_PASSWORD` debe tener al menos 12 caracteres; si no, el dashboard se queda desactivado (las lecturas se siguen guardando). |
-| Límite de intentos | 5 intentos por minuto por IP y 30 por minuto en total, con el binding Rate Limiting de Cloudflare. Al superarlos, el login responde *429 Demasiados intentos* durante un minuto, incluso con la contraseña buena. |
+| Límite de intentos | 5 intentos por minuto por IP y 30 por minuto en total, con el binding Rate Limiting de Cloudflare. Al superarlos, el login responde *429 Demasiados intentos*, incluso con la contraseña buena. El límite es aproximado: en una prueba con 40 intentos rápidos pasaron los 13 primeros y después se colaron algunos. Frena mucho a quien intente adivinar, pero **lo que de verdad protege es una contraseña que no se pueda adivinar**. |
 | Comparación en tiempo constante | Contraseñas y firmas se comparan por su hash SHA-256, sin salir antes de tiempo. |
 | Sesión | Cookie firmada (HMAC-SHA256 con la contraseña) válida 30 días, `HttpOnly`, `Secure`, `SameSite=Strict`. Cambiar la contraseña invalida todas las sesiones. |
 | CSRF | El login y el cierre de sesión rechazan peticiones de otros orígenes. |
