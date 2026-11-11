@@ -65,7 +65,7 @@ Medidor ──Wi-Fi──► nube de Tuya ◄──API── Worker de Cloudflar
 
 Por eso `READ_INTERVAL_MINUTES` viene a **2**. Cada llamada a `/debug` gasta 2 llamadas más, y los fallos gastan más por los reintentos.
 
-**Caducidad de la prueba.** La prueba gratuita de IoT Core caduca (la nuestra, un mes después de crear el proyecto). Cuando caduca, las lecturas se paran y los fallos aparecen en la tabla `energy_errors` y como un aviso rojo en el dashboard. Se puede ampliar gratis desde *Cloud → My Services*: hay un formulario de solicitud de ampliación que Tuya revisa a mano. Nosotros pedimos 6 meses, el máximo que ofrecía. **Ponte un recordatorio** una semana antes de la fecha de caducidad que aparece ahí.
+**Caducidad de la prueba.** La prueba gratuita de IoT Core caduca (la nuestra, un mes después de crear el proyecto). Cuando caduca, las lecturas se paran y los fallos aparecen en la tabla `energy_errors` y como un aviso rojo en el dashboard. Se puede ampliar gratis desde *Cloud → My Services*: hay un formulario de solicitud de ampliación que Tuya revisa a mano. Nosotros pedimos 6 meses, el máximo que ofrecía, y lo aprobaron en menos de 5 días: la fecha de caducidad se movió 6 meses. Puedes volver a pedirlo cuando esté cerca de caducar. **Ponte un recordatorio** una semana antes de la fecha de caducidad que aparece ahí.
 
 ## 2. Qué necesitas
 

@@ -65,7 +65,7 @@ Meter ──Wi-Fi──► Tuya cloud ◄──API── Cloudflare Worker (cron
 
 That is why `READ_INTERVAL_MINUTES` defaults to **2**. Each `/debug` call spends 2 extra calls, and failures spend more because of retries.
 
-**Trial expiry.** The free IoT Core trial expires (ours was one month after creating the project). When it expires the readings stop and the failures appear in the `energy_errors` table and as a red banner in the dashboard. You can extend it for free from *Cloud → My Services*: there is an extension request form, and Tuya reviews it manually. We asked for 6 months, the maximum the form offered. **Put a reminder in your calendar** a week before the expiry date shown there.
+**Trial expiry.** The free IoT Core trial expires (ours was one month after creating the project). When it expires the readings stop and the failures appear in the `energy_errors` table and as a red banner in the dashboard. You can extend it for free from *Cloud → My Services*: there is an extension request form, and Tuya reviews it manually. We asked for 6 months, the maximum the form offered, and it was approved within 5 days: the expiry date simply moved 6 months later. You can apply again when it is close to expiring. **Put a reminder in your calendar** a week before the expiry date shown there.
 
 ## 2. What you need
 
