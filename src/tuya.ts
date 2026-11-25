@@ -176,6 +176,36 @@ export async function getDeviceStatus(env: TuyaEnv): Promise<TuyaStatusItem[]> {
   }
 }
 
+export interface DeviceState {
+  /** false si Tuya da el aparato por desconectado; null si no se pudo saber. */
+  online: boolean | null;
+  status: TuyaStatusItem[];
+}
+
+/**
+ * Tuya devuelve el último estado conocido aunque el aparato lleve días sin wifi,
+ * así que también hay que mirar `online`. /v1.0/devices/{id} trae las dos cosas
+ * en una sola llamada, sin gastar más cuota. Esa respuesta incluye además la
+ * local_key y la IP del aparato: aquí solo se usan `online` y `status`.
+ */
+export async function getDeviceState(env: TuyaEnv): Promise<DeviceState> {
+  const id = encodeURIComponent(env.TUYA_DEVICE_ID);
+  try {
+    const details = await authedGet<{ online?: unknown; status?: unknown }>(env, `/v1.0/devices/${id}`);
+    if (Array.isArray(details.status)) {
+      return {
+        online: typeof details.online === "boolean" ? details.online : null,
+        status: details.status as TuyaStatusItem[],
+      };
+    }
+    console.log("La ficha del dispositivo no trae status; se pide /status");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(`Fallo en /v1.0/devices/{id}, se pide /status: ${message}`);
+  }
+  return { online: null, status: await getDeviceStatus(env) };
+}
+
 export interface SpecStatusItem {
   code: string;
   type?: string;

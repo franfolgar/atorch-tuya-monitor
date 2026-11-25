@@ -298,7 +298,8 @@ Abre la URL de tu Worker y entra con `DASHBOARD_PASSWORD`. La sesión dura 30 d�
 
 - **Cron**: Cloudflare ejecuta el Worker cada minuto, y solo lee cuando el minuto es múltiplo de `READ_INTERVAL_MINUTES`.
 - **API de Tuya**: las peticiones se firman con HMAC-SHA256 usando Web Crypto, sin SDK. El token de acceso (válido unas 2 h) se guarda en KV y se renueva 5 minutos antes de caducar. Si Tuya rechaza el token (códigos 1010–1012), se renueva y se reintenta una vez.
-- **Estado del medidor**: `/v1.0/iot-03/devices/{id}/status`, con `/v1.0/devices/{id}/status` como alternativa.
+- **Estado del medidor**: `/v1.0/devices/{id}`, que trae `online` y `status` en una sola llamada. Si falla, el Worker pasa a `/v1.0/iot-03/devices/{id}/status` y luego a `/v1.0/devices/{id}/status`.
+- **Medidor desconectado**: mientras un aparato está sin conexión (sin wifi o sin luz), Tuya sigue devolviendo **la última lectura que tenía**, como si fuera actual. Por eso el Worker mira `online` y, si vale `false`, no guarda nada y apunta un error `sin conexión`. La ficha del aparato trae también su `local_key` y su IP: el Worker nunca las guarda ni las muestra en los registros.
 - **El cron nunca se rompe**: cualquier fallo se captura, se registra en el log y, con `LOG_ERRORS_TO_DB = "true"`, se guarda en `energy_errors`.
 - **Guardado**: una fila por lectura a través de la API REST de Supabase con la clave secreta, incluida la respuesta cruda completa.
 - **Energía**: `energy_intervals` usa la diferencia de `energy_kwh` entre lecturas cuando hay un contador asignado. Si no (como en el GR2PWS), la estima con la potencia media de cada par de lecturas × el tiempo. Los huecos de más de 15 minutos no se estiman, para no inventar consumo durante un corte. Las columnas `kwh_counter` y `kwh_estimated` muestran cada método por separado.
@@ -368,6 +369,8 @@ Los límites cambian: consulta la página de precios actual de cada servicio.
 | El dashboard responde 503 | Falta `DASHBOARD_PASSWORD` o tiene menos de 12 caracteres. |
 | El login responde *Demasiados intentos* (429) | Has llegado al límite de intentos: espera un minuto. |
 | `/debug` responde 401 | Entra primero en el dashboard, en el mismo navegador. |
+| Errores `sin conexión` y *Sin lecturas nuevas* | Tuya da el medidor por desconectado: revisa su wifi y la luz. Las lecturas vuelven solas cuando se reconecta. |
+| La misma lectura repetida durante horas (versiones anteriores a este arreglo) | El medidor estaba desconectado y Tuya devolvía su última lectura. Actualiza el Worker y borra las filas repetidas. |
 | Horas o días desplazados | `TIMEZONE` no coincide con la zona de las vistas SQL. |
 
 ## 17. Desarrollo

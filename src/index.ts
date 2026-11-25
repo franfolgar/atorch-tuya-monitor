@@ -3,6 +3,7 @@ import { DP_MAPPING, RELAY_CODES, mapStatus, type TuyaStatusItem } from "./mappi
 import { insertRow } from "./supabase";
 import {
   getDeviceSpecification,
+  getDeviceState,
   getDeviceStatus,
   type DeviceSpecification,
   type TuyaEnv,
@@ -34,7 +35,17 @@ async function logFailure(env: Env, stage: string, err: unknown): Promise<void> 
 export async function collectReading(env: Env): Promise<void> {
   let status: TuyaStatusItem[];
   try {
-    status = await getDeviceStatus(env);
+    const state = await getDeviceState(env);
+    if (state.online === false) {
+      // Sin esto se guardaría una y otra vez la última lectura de antes del corte.
+      await logFailure(
+        env,
+        "sin conexión",
+        "Tuya da el medidor por desconectado (sin wifi o sin luz); no se guarda la lectura",
+      );
+      return;
+    }
+    status = state.status;
   } catch (err) {
     await logFailure(env, "tuya", err);
     return;

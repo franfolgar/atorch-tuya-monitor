@@ -298,7 +298,8 @@ Open your Worker URL and log in with `DASHBOARD_PASSWORD`. The session lasts 30 
 
 - **Cron**: Cloudflare runs the Worker every minute; it only reads when the minute is a multiple of `READ_INTERVAL_MINUTES`.
 - **Tuya API**: requests are signed with HMAC-SHA256 using Web Crypto (no SDK). The access token (valid ~2 h) is cached in KV and renewed 5 minutes before it expires. If Tuya rejects the token (codes 1010–1012), it is renewed and the request is retried once.
-- **Status endpoint**: `/v1.0/iot-03/devices/{id}/status`, with `/v1.0/devices/{id}/status` as a fallback.
+- **Status endpoint**: `/v1.0/devices/{id}`, which returns `online` and `status` in a single call. If that fails, the Worker falls back to `/v1.0/iot-03/devices/{id}/status` and then `/v1.0/devices/{id}/status`.
+- **Offline meter**: Tuya keeps returning the **last known status** while a device is offline (no Wi-Fi, no power), as if it were live. That is why the Worker checks `online` and saves nothing while it is `false`; it logs a `sin conexión` error instead. The device details also include its `local_key` and IP: the Worker never stores or logs them.
 - **Never breaks the cron**: any failure is caught, logged and, with `LOG_ERRORS_TO_DB = "true"`, stored in `energy_errors`.
 - **Storage**: one row per reading via Supabase's REST API with the secret key, including the full raw response.
 - **Energy**: `energy_intervals` uses the difference of `energy_kwh` between readings when a counter is mapped. Otherwise (as on the GR2PWS) it estimates with the average power of each pair of readings × time. Gaps longer than 15 minutes are not estimated, so an outage does not invent consumption. The `kwh_counter` and `kwh_estimated` columns show each method separately.
@@ -368,6 +369,8 @@ Limits change; check each provider's current pricing page.
 | Dashboard answers 503 | `DASHBOARD_PASSWORD` is missing or shorter than 12 characters. |
 | Login answers *Demasiados intentos* (429) | Rate limit reached: wait one minute. |
 | `/debug` answers 401 | Log in to the dashboard first, in the same browser. |
+| Errors `sin conexión` and *Sin lecturas nuevas* | Tuya reports the meter as offline: check its Wi-Fi and power. Readings resume on their own once it reconnects. |
+| Identical readings repeated for hours (versions before this fix) | The meter was offline and Tuya returned its last status. Update the Worker and delete the repeated rows. |
 | Hours or days shifted | `TIMEZONE` and the zone in the SQL views differ. |
 
 ## 17. Development

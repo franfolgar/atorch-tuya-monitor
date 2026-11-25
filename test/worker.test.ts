@@ -46,6 +46,10 @@ function makeEnv(kv = makeKv()): Env {
 
 const tuyaOk = (result: unknown) => Response.json({ success: true, result });
 const tuyaFail = (code: number, msg: string) => Response.json({ success: false, code, msg });
+/** Ficha de /v1.0/devices/{id}: trae online y status (y datos que no deben guardarse). */
+const details = (online: unknown = true) =>
+  tuyaOk({ online, status: STATUS, local_key: "clave-local-secreta", ip: "203.0.113.9" });
+const isDetails = (url: string) => url.endsWith("/v1.0/devices/device1");
 const VALID_TOKEN = { access_token: "cached", expires_at: Date.now() + 3_600_000 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -134,28 +138,50 @@ describe("intervalo", () => {
 });
 
 describe("lectura", () => {
-  it("reutiliza el token de KV e inserta la fila con raw", async () => {
+  it("reutiliza el token de KV e inserta la fila con raw, en una sola llamada a Tuya", async () => {
     const kv = makeKv(VALID_TOKEN);
     fetchMock.mockImplementation(async (url: string) =>
-      url.includes("tuyaeu") ? tuyaOk(STATUS) : new Response(null, { status: 201 }),
+      url.includes("tuyaeu") ? details() : new Response(null, { status: 201 }),
     );
     await collectReading(makeEnv(kv));
 
     expect(calledUrls()).toEqual([
-      "https://openapi.tuyaeu.com/v1.0/iot-03/devices/device1/status",
+      "https://openapi.tuyaeu.com/v1.0/devices/device1",
       "https://x.supabase.co/rest/v1/energy_readings",
     ]);
     expect(kv.put).not.toHaveBeenCalled();
-    const body = JSON.parse(fetchMock.mock.calls[1]![1].body);
+    const sent = fetchMock.mock.calls[1]![1].body as string;
+    const body = JSON.parse(sent);
     expect(body.power_w).toBe(27.7);
     expect(body.raw).toEqual(STATUS);
+    expect(sent).not.toContain("clave-local-secreta");
+    expect(sent).not.toContain("203.0.113.9");
+  });
+
+  it("no guarda la lectura si Tuya da el medidor por desconectado", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("tuyaeu") ? details(false) : new Response(null, { status: 201 }),
+    );
+    await collectReading(makeEnv(makeKv(VALID_TOKEN)));
+    expect(calledUrls().join()).not.toContain("energy_readings");
+    expect(calledUrls().at(-1)).toContain("energy_errors");
+    const body = JSON.parse(fetchMock.mock.calls.at(-1)![1].body);
+    expect(body.stage).toBe("sin conexión");
+  });
+
+  it("guarda la lectura si la ficha no dice si está conectado", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("tuyaeu") ? details(undefined) : new Response(null, { status: 201 }),
+    );
+    await collectReading(makeEnv(makeKv(VALID_TOKEN)));
+    expect(calledUrls().at(-1)).toContain("energy_readings");
   });
 
   it("renueva el token cuando falta poco para caducar", async () => {
     const kv = makeKv({ access_token: "old", expires_at: Date.now() + 60_000 });
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("/token")) return tuyaOk({ access_token: "new", expire_time: 7200 });
-      if (url.includes("tuyaeu")) return tuyaOk(STATUS);
+      if (url.includes("tuyaeu")) return details();
       return new Response(null, { status: 201 });
     });
     await collectReading(makeEnv(kv));
@@ -169,7 +195,7 @@ describe("lectura", () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("/token")) return tuyaOk({ access_token: "new", expire_time: 7200 });
       if (url.includes("tuyaeu")) {
-        return ++statusCalls === 1 ? tuyaFail(1010, "token invalid") : tuyaOk(STATUS);
+        return ++statusCalls === 1 ? tuyaFail(1010, "token invalid") : details();
       }
       return new Response(null, { status: 201 });
     });
@@ -178,9 +204,9 @@ describe("lectura", () => {
     expect(calledUrls().at(-1)).toContain("energy_readings");
   });
 
-  it("usa /v1.0/devices si iot-03 falla", async () => {
+  it("si la ficha falla pide /status, y /v1.0/devices si iot-03 falla", async () => {
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("iot-03")) return tuyaFail(1106, "permission deny");
+      if (isDetails(url) || url.includes("iot-03")) return tuyaFail(1106, "permission deny");
       if (url.includes("tuyaeu")) return tuyaOk(STATUS);
       return new Response(null, { status: 201 });
     });
